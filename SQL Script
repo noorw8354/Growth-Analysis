@@ -1,0 +1,87 @@
+Set odps.sql.type.system.odps2=true;
+
+SELECT
+industry
+
+,round(LM_Gmv) as lm_gmv
+,round(CM_Gmv) as cm_gmv
+,round(CQ_Gmv) as cq_gmv
+,round(CY_Gmv) as cy_gmv
+
+,round(LM_Orders) as lm_orders
+,round(CM_Orders) as cm_orders
+,round(CQ_Orders) as cq_orders
+,round(CY_Orders) as cy_orders
+
+,round((LM_Gmv/LLM_Gmv - 1) * 100) || '%' as LM_Gmv_Growth
+,round((CM_Gmv/LCM_Gmv - 1) * 100) || '%' as CM_Gmv_Growth
+,round((CQ_Gmv/LCQ_Gmv - 1) * 100) || '%' as CQ_Gmv_Growth
+,round((CY_Gmv/LY_Gmv - 1) * 100) ||  '%'  as CY_Gmv_Growth
+
+,round((LM_Orders/LLM_Orders - 1) * 100) || '%'  as LM_Orders_Growth
+,round((CM_Orders/LCM_Orders - 1) * 100) || '%'  as CM_Orders_Growth
+,round((CQ_Orders/LCQ_Orders - 1) * 100) || '%'  as CQ_Orders_Growth
+,round((CY_Orders/LY_Orders - 1)  * 100) || '%'  as CY_Orders_Growth
+
+FROM (
+SELECT  CASE   WHEN venture_category1_name_en IN ('SOF','Cameras','Computers & Laptops','Home Appliances','Mobiles & Tablets','TV, Audio / Video, Gaming & Wearables','TV Audio Video Gaming & Wearables','TV Audio Video Gaming & Wearables') THEN 'Electronics'
+                            WHEN venture_category1_name_en IN ('Bags and Travel','Fashion','Watches Sunglasses Jewellery') THEN 'Fashion'
+                            WHEN venture_category1_name_en IN ('Bedding & Bath','Toys Kids & Babies','Charity and Donation','Furniture & Décor','Furniture & DÃ©cor','Furniture & Decor','Furniture & D√©cor','Home & Living','Kitchen & Dining','Laundry & Cleaning','Media, Music & Books','Media Music & Books','Motors','Sports & Outdoors','Stationery & Craft','Tools, DIY & Outdoor','Tools DIY & Outdoor','Toys & Games','Wholesale','Packaging Material',"Special Promotion") THEN 'Lifestyle'
+                            WHEN venture_category1_name_en IN ('Groceries','Health & Beauty','Mother & Baby','Pet Supplies','Medicine','Livestock','Sample') THEN 'FMCG'
+                            WHEN venture_category1_name_en IN ('Digital Goods','Topup','Service Product','Special Digital Products') THEN 'Digital Goods'
+                            ELSE 'Unidentified'
+                    END AS industry
+        --LM            
+        ,sum(case when TO_DATE(fulfillment_create_date) >= ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1) and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) then actual_gmv * exchange_rate end) as LM_Gmv
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1) and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) then sales_order_id end) as LM_Orders
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1) and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) then sales_order_item_id end) as LM_Items
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1) and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) then buyer_id end) as LM_Buyers
+        --CM
+        ,SUM(case when to_date(fulfillment_create_date) >= cast(datetrunc(now(),'mm') as date) and to_date(fulfillment_create_date) < to_date(now()) then actual_gmv * exchange_rate end) as CM_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= cast(datetrunc(now(),'mm') as date) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_id end) as CM_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= cast(datetrunc(now(),'mm') as date) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_item_id end) as CM_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= cast(datetrunc(now(),'mm') as date) and to_date(fulfillment_create_date) < to_date(now()) then buyer_id end) as CM_Buyers
+        --CQ
+        ,SUM(case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'mm'),-1) and to_date(fulfillment_create_date) < to_date(now()) then actual_gmv * exchange_rate end) as CQ_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'mm'),-1) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_id end) as CQ_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'mm'),-1) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_item_id end) as CQ_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'mm'),-1) and to_date(fulfillment_create_date) < to_date(now()) then buyer_id end) as CQ_Buyers
+        --CY
+        ,sum(case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'yyyy'), 3) and to_date(fulfillment_create_date) < to_date(now()) then actual_gmv * exchange_rate end) as CY_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'yyyy'), 3) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_id end) as CY_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'yyyy'), 3) and to_date(fulfillment_create_date) < to_date(now()) then sales_order_item_id end) as CY_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(datetrunc(to_date(now()),'yyyy'), 3) and to_date(fulfillment_create_date) < to_date(now()) then buyer_id end) as CY_Buyers
+
+        --LLM            
+        ,sum(case when TO_DATE(fulfillment_create_date) >= to_date(ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1)) - INTERVAL 1 YEAR and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) - INTERVAL 1 YEAR then actual_gmv * exchange_rate end) as LLM_Gmv
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= to_date(ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1)) - INTERVAL 1 YEAR and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) - INTERVAL 1 YEAR then sales_order_id end) as LLM_Orders
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= to_date(ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1)) - INTERVAL 1 YEAR and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) - INTERVAL 1 YEAR then sales_order_item_id end) as LLM_Items
+        ,COUNT(distinct case when TO_DATE(fulfillment_create_date) >= to_date(ADD_MONTHS(cast(datetrunc(now(),'mm') as date),-1)) - INTERVAL 1 YEAR and to_date(fulfillment_create_date) < cast(datetrunc(now(),'mm') as date) - INTERVAL 1 YEAR then buyer_id end) as LLM_Buyers
+        --LCM
+        ,SUM(case when to_date(fulfillment_create_date) >= to_date(cast(datetrunc(now(),'mm') as date)) - INTERVAL 1 YEAR and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then actual_gmv * exchange_rate end) as LCM_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(cast(datetrunc(now(),'mm') as date)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_id end) as LCM_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(cast(datetrunc(now(),'mm') as date)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_item_id end) as LCM_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(cast(datetrunc(now(),'mm') as date)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then buyer_id end) as LCM_Buyers
+        --LYQ
+        ,SUM(case when to_date(fulfillment_create_date) >= to_date(add_months(datetrunc(to_date(now()),'mm'),-1)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then actual_gmv * exchange_rate end) as LCQ_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(add_months(datetrunc(to_date(now()),'mm'),-1)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_id end) as LCQ_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(add_months(datetrunc(to_date(now()),'mm'),-1)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_item_id end) as LCQ_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= to_date(add_months(datetrunc(to_date(now()),'mm'),-1)) - INTERVAL 1 YEAR  and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then buyer_id end) as LCQ_Buyers
+        --LY
+        ,sum(case when to_date(fulfillment_create_date) >= add_months(to_date(datetrunc(to_date(now()),'yyyy')) - INTERVAL 1 YEAR , 3) and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then actual_gmv * exchange_rate end) as LY_Gmv
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(to_date(datetrunc(to_date(now()),'yyyy')) - INTERVAL 1 YEAR , 3) and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_id end) as LY_Orders
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(to_date(datetrunc(to_date(now()),'yyyy')) - INTERVAL 1 YEAR , 3) and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then sales_order_item_id end) as LY_Items
+        ,COUNT(DISTINCT case when to_date(fulfillment_create_date) >= add_months(to_date(datetrunc(to_date(now()),'yyyy')) - INTERVAL 1 YEAR , 3) and to_date(fulfillment_create_date) < to_date(now()) - INTERVAL 1 YEAR  then buyer_id end) as LY_Buyers
+
+FROM    daraz_cdm.dwd_drz_trd_core_df
+WHERE   ds = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+--AND     TO_CHAR(fulfillment_create_date,"yyyymm") = 202305
+AND     to_date(fulfillment_create_date) >= '2022-01-01' and to_date(fulfillment_create_date) < to_date(now())
+and     (shop_account_code not in ('PK2NBODB253','PK2NBR1VOAS') 
+and       brand_id not in ('127088430'))
+AND     venture IN ('PK')
+AND     unit_price > 1
+AND     is_fulfilled = '1'
+GROUP BY 
+industry 
+) as main;
